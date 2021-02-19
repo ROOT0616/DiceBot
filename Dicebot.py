@@ -16,6 +16,15 @@ print(list(range(1,6,1)))
 @client.event
 async def on_message(message):
     # 「/d1」で始まるか調べる
+    if message.content.startswith("/d help"):
+        # 送り主がBotだった場合反応したくないので
+        if client.user != message.author:
+            # メッセージを書きます
+            m =  message.author.name + '\r\n      HELP    \r\n/d1で六面ダイスを一個降ります。\r\n/d2で六面ダイスを二個降ります。\r\n/d3で六面ダイスを三個降ります。'
+            m = m + '\r\n\r\n/d00で百面ダイスを一個降ります。'
+            # メッセージが送られてきたチャンネルへメッセージを送ります
+            await message.channel.send(m)
+    # 「/d1」で始まるか調べる
     if message.content.startswith("/d1"):
         # 送り主がBotだった場合反応したくないので
         if client.user != message.author:
@@ -62,4 +71,4 @@ async def on_message(message):
             # メッセージが送られてきたチャンネルへメッセージを送ります
             await message.channel.send(m)
 
-client.run("NzMyMDg4NTQyNjU3NzczNjY4.Xwvglg.bHJLzlgRSrO9dh74mJkxiZNu5B4")
+client.run("")
