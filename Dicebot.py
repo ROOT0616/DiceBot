@@ -1,182 +1,96 @@
-import discord
-import random
 
-client = discord.Client()
+import random
+import discord
+from discord.ext import commands
+
+# Constants
+HELP_MESSAGE = """
+/d1, /d2, /d3 で1から3回の6面のサイコロを振ります。
+/d00 で1回の100面のサイコロを振ります。/r 回数d面数で、指定した回数と面数のサイコロを振ります。回数は1から10、面数は2から100で指定してください。
+"""
+
+import json
+
+# Read configuration from an external file
+with open('config.json', 'r') as file:
+# with open('/home/game/Dicebot/config.json', 'r') as file:
+    config = json.load(file)
+
+# Get the bot token from the configuration
+BOT_TOKEN = config["TOKEN"]
+
+# Functions
+def format_dice_result(result, faces, times):
+    return f'{times}d{faces}: ' + ' + '.join(result) + f' = {sum(map(int, result))}'
+
+async def send_dice_result(message, faces, times):
+    result = [str(random.randint(1, faces)) for _ in range(times)]
+    await message.channel.send('<@' + str(message.author.id) + '>' + format_dice_result(result, faces, times))
+
+async def send_error(message, error_message):
+    await message.channel.send('<@' + str(message.author.id) + '>' + f"エラー: {error_message}")
+
+async def handle_roll_command(message, command, faces, default_times=1):
+    times_str = command[len(command.split(' ')[0]):]
+    if times_str:
+        try:
+            times = int(times_str)
+        except ValueError:
+            await send_error(message, f'回数は整数で入力してください。コマンド: {command}')
+            return
+    else:
+        times = default_times
+
+    if 1 <= times <= 10:
+        await send_dice_result(message, faces, times)
+    else:
+        await send_error(message, '1から10の回数で振ってください')
+
+async def handle_custom_roll_command(message, command):
+    try:
+        parts = command.split(' ')
+        times, faces = map(int, parts[1].split('d'))
+        if 1 <= times <= 10 and 2 <= faces <= 100:
+            await send_dice_result(message, faces, times)
+        else:
+            await send_error(message, '回数は1から10、面数は2から100で指定してください')
+    except ValueError:
+        await send_error(message, '無効なコマンド形式です。使用方法: /r 回数d面数')
+
+async def handle_command(message):
+    if client.user == message.author:
+        return  # Ignore messages from the bot itself
+    content = message.content
+    if content.startswith("/dhelp"):
+        await message.channel.send('<@' + str(message.author.id) + '>' + HELP_MESSAGE)
+    elif content.startswith("/d1"):
+        await handle_roll_command(message, content, 6, 1)
+    elif content.startswith("/d2"):
+        await handle_roll_command(message, content, 6, 2)
+    elif content.startswith("/d3"):
+        await handle_roll_command(message, content, 6, 3)
+    elif content.startswith("/d00"):
+        await handle_roll_command(message, content, 100, 1)
+    elif content.startswith("/r "):
+        await handle_custom_roll_command(message, content)
+
+# Main
+intents = discord.Intents.default()
+# client = discord.Client(intents=intents)
+client = discord.Client(
+    activity=discord.Game("神のダイス"),  # "〇〇をプレイ中"の"〇〇"を設定,
+)
 
 @client.event
 async def on_ready():
-  print('Logged in as')
-  print(client.user.name)
-  print(client.user.id)
-  print('------')
+    print(f'Logged in as {client.user}')
 
-
-print(list(range(1,7,1)))
-# [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 @client.event
 async def on_message(message):
-  # 「/d help」で始まるか調べる
-  if message.content.startswith("/d help"):
-    # 送り主がBotだった場合反応したくないので
-    if client.user != message.author:
-      # メッセージを書きます
-      m1 =  '<@' + str(message.author.id) + '>\n　　　　　 HELP'
-      m1 += '\n/d1で六面ダイスを一個降ります。'
-      m1 += '\n/d2で六面ダイスを二個降ります。'
-      m1 += '\n/d3で六面ダイスを三個降ります。'
-      m1 += '\n/d00で百面ダイスを一個降ります。'
-      m1 += '\n/1d3で3面ダイスを一個降ります。'
-      # メッセージが送られてきたチャンネルへメッセージを送ります
-      await message.channel.send(m1)
-  # 「/d1」で始まるか調べる
-  if message.content.startswith("/d1"):
-    # 送り主がBotだった場合反応したくないので
-    if client.user != message.author:
-      m2 = str(message.content)
-      m3 = m2.replace('/d1', '')
-      # メッセージが送られてきたチャンネルへメッセージを送ります
-      # await message.channel.send(m)
-      # await message.channel.send(m2)
-      # await message.channel.send(m3)
-      m4 = str('')
-      m5 = 0
-      if m3 == m4:
-        # メッセージを書きます
-        n1 = random.randrange(1,7,1)
-        m =  '<@' + str(message.author.id) + '> : 1d6 : ' + str(n1)
-        await message.channel.send(m)
-      elif type(int(m3)) == type(m5):
-        if int(m3) < 11:
-          await message.channel.send('1d6を' + str(m3) + '回ふります')
-          while int(m3) > m5:
-            # メッセージを書きます
-            n1 = random.randrange(1,7,1)
-            m =  '<@' + str(message.author.id) + '> : 1d6 : ' + str(n1)
-            await message.channel.send(m)
-            m5 += 1
-        else:
-            await message.channel.send('10以下でお願いします')
-  # 「/d2」で始まるか調べる
-  if message.content.startswith("/d2"):
-    # 送り主がBotだった場合反応したくないので
-    if client.user != message.author:
-      m2 = str(message.content)
-      m3 = m2.replace('/d2', '')
-      # メッセージが送られてきたチャンネルへメッセージを送ります
-      # await message.channel.send(m)
-      # await message.channel.send(m2)
-      # await message.channel.send(m3)
-      m4 = str('')
-      m5 = 0
-      if m3 == m4:
-        # メッセージを書きます
-        n1 = random.randrange(1,7,1)
-        n2 = random.randrange(1,7,1)
-        n3 = n1 + n2
-        m =  '<@' + str(message.author.id) + '> : 2d6 : ' + str(n1)+ ' + ' + str(n2) + ' = ' + str(n3)
-        await message.channel.send(m)
-      elif type(int(m3)) == type(m5):
-        if int(m3) < 11:
-          await message.channel.send('2d6を' + str(m3) + '回ふります')
-          while int(m3) > m5:
-            # メッセージを書きます
-            n1 = random.randrange(1,7,1)
-            n2 = random.randrange(1,7,1)
-            n3 = n1 + n2
-            m =  '<@' + str(message.author.id) + '> : 2d6 : ' + str(n1)+ ' + ' + str(n2) + ' = ' + str(n3)
-            await message.channel.send(m)
-            m5 += 1
-        else:
-            await message.channel.send('10以下でお願いします')
-  # 「/d3」で始まるか調べる
-  if message.content.startswith("/d3"):
-    # 送り主がBotだった場合反応したくないので
-    if client.user != message.author:
-      m2 = str(message.content)
-      m3 = m2.replace('/d3', '')
-      # メッセージが送られてきたチャンネルへメッセージを送ります
-      # await message.channel.send(m)
-      # await message.channel.send(m2)
-      # await message.channel.send(m3)
-      m4 = str('')
-      m5 = 0
-      if m3 == m4:
-        # メッセージを書きます
-        n1 = random.randrange(1,7,1)
-        n2 = random.randrange(1,7,1)
-        n2 = random.randrange(1,7,1)
-        n3 = random.randrange(1,7,1)
-        n4 = n1 + n2 + n3
-        m =  '<@' + str(message.author.id) + '> : 2d6 : ' + str(n1)+ ' + ' + str(n2) + ' + ' + str(n3) + ' = ' + str(n4)
-        await message.channel.send(m)
-      elif type(int(m3)) == type(m5):
-        if int(m3) < 11:
-          await message.channel.send('3d6を' + str(m3) + '回ふります')
-          while int(m3) > m5:
-            # メッセージを書きます
-            n1 = random.randrange(1,7,1)
-            n2 = random.randrange(1,7,1)
-            n2 = random.randrange(1,7,1)
-            n3 = random.randrange(1,7,1)
-            n4 = n1 + n2 + n3
-            m =  '<@' + str(message.author.id) + '> : 2d6 : ' + str(n1)+ ' + ' + str(n2) + ' + ' + str(n3) + ' = ' + str(n4)
-            await message.channel.send(m)
-            m5 += 1
-        else:
-            await message.channel.send('10以下でお願いします')
-  if message.content.startswith("/d00"):
-    # 送り主がBotだった場合反応したくないので
-    if client.user != message.author:
-      m2 = str(message.content)
-      m3 = m2.replace('/d00', '')
-      # メッセージが送られてきたチャンネルへメッセージを送ります
-      # await message.channel.send(m)
-      # await message.channel.send(m2)
-      # await message.channel.send(m3)
-      m4 = str('')
-      m5 = 0
-      if m3 == m4:
-        # メッセージを書きます
-        n1 = random.randrange(1,101,1)
-        m =  '<@' + str(message.author.id) + '> : 1d100 : ' + str(n1)
-        await message.channel.send(m)
-      elif type(int(m3)) == type(m5):
-        if int(m3) < 11:
-          await message.channel.send('1d100を' + str(m3) + '回ふります')
-          while int(m3) > m5:
-            # メッセージを書きます
-            n1 = random.randrange(1,101,1)
-            m =  '<@' + str(message.author.id) + '> : 1d100 : ' + str(n1)
-            await message.channel.send(m)
-            m5 += 1
-        else:
-            await message.channel.send('10以下でお願いします')
-  if message.content.startswith("/1d3"):
-    # 送り主がBotだった場合反応したくないので
-    if client.user != message.author:
-      m2 = str(message.content)
-      m3 = m2.replace('/1d3', '')
-      # メッセージが送られてきたチャンネルへメッセージを送ります
-      # await message.channel.send(m)
-      # await message.channel.send(m2)
-      # await message.channel.send(m3)
-      m4 = str('')
-      m5 = 0
-      if m3 == m4:
-        # メッセージを書きます
-        n1 = random.randrange(1,4,1)
-        m =  '<@' + str(message.author.id) + '> : 1d3 : ' + str(n1)
-        await message.channel.send(m)
-      elif type(int(m3)) == type(m5):
-        if int(m3) < 11:
-          await message.channel.send('1d3を' + str(m3) + '回ふります')
-          while int(m3) > m5:
-            # メッセージを書きます
-            n1 = random.randrange(1,4,1)
-            m =  '<@' + str(message.author.id) + '> : 1d3 : ' + str(n1)
-            await message.channel.send(m)
-            m5 += 1
-        else:
-            await message.channel.send('10以下でお願いします')
+    await handle_command(message)
 
-client.run("")
+# @client.command(name="dhelp", description="Helpメッセージを返します")
+# async def ping(ctx: discord.ApplicationContext):
+#     await ctx.respond(f"{ctx.author.mention}" + HELP_MESSAGE)
+
+client.run(BOT_TOKEN)
