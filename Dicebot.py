@@ -54,6 +54,24 @@ async def handle_custom_roll_command(message):
     except ValueError:
         await send_error(message, '無効なコマンド形式です。使用方法: /r 回数d面数')
 
+async def handle_command(message):
+    if message.author == client.user:
+        return  # Ignore messages from the bot itself
+    content = message.content
+    if content.startswith("/dhelp"):
+        await message.channel.send('<@' + str(message.author.id) + '>' + HELP_MESSAGE)
+        logging.info('@' + str(message.author) + HELP_MESSAGE)
+    elif content.startswith("/d1"):
+        await handle_d_command(message, 6, 1)
+    elif content.startswith("/d2"):
+        await handle_d_command(message, 6, 2)
+    elif content.startswith("/d3"):
+        await handle_d_command(message, 6, 3)
+    elif content.startswith("/d00"):
+        await handle_d_command(message, 100, 1)
+    elif content.startswith("/r "):
+        await handle_custom_roll_command(message)
+        
 # Main
 intents = discord.Intents.default()
 intents.message_content = True
