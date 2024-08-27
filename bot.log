@@ -1,0 +1,15 @@
+2024-08-27 15:56:44,918:WARNING:PyNaCl is not installed, voice will NOT be supported
+2024-08-27 15:56:44,923:INFO:logging in using static token
+2024-08-27 15:56:45,941:INFO:Shard ID None has connected to Gateway (Session ID: cae05cd4340b14bd63941026d23631aa).
+2024-08-27 15:56:47,969:INFO:Logged in as DiceBot#7570 (ID: 732088542657773668)
+2024-08-27 15:56:48,333:INFO:Synced 3 command(s)
+2024-08-27 15:57:55,705:WARNING:PyNaCl is not installed, voice will NOT be supported
+2024-08-27 15:57:55,708:INFO:logging in using static token
+2024-08-27 15:57:56,961:INFO:Shard ID None has connected to Gateway (Session ID: 1327dd3c0c06045d7aa930a1d8ef03cf).
+2024-08-27 15:57:59,017:INFO:Logged in as DiceBot#7570 (ID: 732088542657773668)
+2024-08-27 15:57:59,403:INFO:Synced 3 command(s)
+2024-08-27 16:04:52,463:WARNING:PyNaCl is not installed, voice will NOT be supported
+2024-08-27 16:04:52,467:INFO:logging in using static token
+2024-08-27 16:04:53,558:INFO:Shard ID None has connected to Gateway (Session ID: ee7a4c283042c93fc4246f5cb1865448).
+2024-08-27 16:04:55,587:INFO:Logged in as DiceBot#7570 (ID: 732088542657773668)
+2024-08-27 16:04:56,016:INFO:Synced 3 command(s)

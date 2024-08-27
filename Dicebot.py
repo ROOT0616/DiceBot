@@ -1,88 +1,105 @@
-import random
 import discord
+from discord.ext import commands
+from discord import app_commands
+import random
 import json
 import logging
 
-# Initialize logging
-logging.basicConfig(level=logging.INFO)
+# ログの設定
+logging.basicConfig(level=logging.INFO, filename='bot.log', format='%(asctime)s:%(levelname)s:%(message)s')
 
-# Read configuration from an external file
-with open('config.json', 'r') as file:
-    config = json.load(file)
+# config.jsonからトークンを読み込む (UTF-8エンコーディングを指定)
+try:
+    with open("config.json", encoding='utf-8') as config_file:
+        config = json.load(config_file)
+except FileNotFoundError:
+    logging.error("config.jsonファイルが見つかりません。")
+    raise SystemExit("config.jsonファイルが見つかりません。")
+except json.JSONDecodeError:
+    logging.error("config.jsonのフォーマットが不正です。")
+    raise SystemExit("config.jsonのフォーマットが不正です。")
 
-# Constants
-BOT_TOKEN = config["TOKEN"]
-HELP_MESSAGE = config["HELP_MESSAGE"]
-MAX_FACES = config["MAX_FACES"]
-MIN_FACES = config["MIN_FACES"]
-MAX_ROLLS = config["MAX_ROLLS"]
-MIN_ROLLS = config["MIN_ROLLS"]
-
-# Helper Functions
-def format_dice_result(result, faces, times):
-    return f'{times}d{faces}: ' + ' + '.join(result) + f' = {sum(map(int, result))}'
-
-async def send_dice_result(message, faces, times):
-    result = [str(random.randint(1, faces)) for _ in range(times)]
-    await message.channel.send('<@' + str(message.author.id) + '>' + format_dice_result(result, faces, times))
-    logging.info('@' + str(message.author) + ' ' + format_dice_result(result, faces, times))
-
-async def send_error(message, error_message):
-    await message.channel.send('<@' + str(message.author.id) + '>' + f"エラー: {error_message}")
-    logging.error('@' + str(message.author) + ' ' + f"エラー: {error_message}")
-
-# Command Handlers
-async def handle_d_command(message, faces, default_times=1):
-    times_str = message.content.split(' ')[-1]
-    try:
-        times = int(times_str) if times_str.isdigit() else default_times
-        if MIN_ROLLS <= times <= MAX_ROLLS:
-            await send_dice_result(message, faces, times)
-        else:
-            await send_error(message, f'回数は{MIN_ROLLS}から{MAX_ROLLS}で指定してください')
-    except ValueError:
-        await send_error(message, '無効な回数です')
-
-async def handle_custom_roll_command(message):
-    try:
-        parts = message.content.split(' ')
-        times, faces = map(int, parts[1].split('d'))
-        if MIN_ROLLS <= times <= MAX_ROLLS and MIN_FACES <= faces <= MAX_FACES:
-            await send_dice_result(message, faces, times)
-        else:
-            await send_error(message, f'回数は{MIN_ROLLS}から{MAX_ROLLS}、面数は{MIN_FACES}から{MAX_FACES}で指定してください')
-    except ValueError:
-        await send_error(message, '無効なコマンド形式です。使用方法: /r 回数d面数')
-
-async def handle_command(message):
-    if message.author == client.user:
-        return  # Ignore messages from the bot itself
-    content = message.content
-    if content.startswith("/dhelp"):
-        await message.channel.send('<@' + str(message.author.id) + '>' + HELP_MESSAGE)
-        logging.info('@' + str(message.author) + HELP_MESSAGE)
-    elif content.startswith("/d1"):
-        await handle_d_command(message, 6, 1)
-    elif content.startswith("/d2"):
-        await handle_d_command(message, 6, 2)
-    elif content.startswith("/d3"):
-        await handle_d_command(message, 6, 3)
-    elif content.startswith("/d00"):
-        await handle_d_command(message, 100, 1)
-    elif content.startswith("/r "):
-        await handle_custom_roll_command(message)
-        
-# Main
+# インテントの設定
 intents = discord.Intents.default()
 intents.message_content = True
-client = discord.Client(intents=intents)
 
-@client.event
+# ボットのインスタンス作成
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+# ボットの初期化処理
+@bot.event
 async def on_ready():
-    logging.info(f'Logged in as {client.user}')
+    logging.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    print("------")
+    # スラッシュコマンドのシンク
+    try:
+        synced = await bot.tree.sync()
+        logging.info(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        logging.error(f"Failed to sync commands: {e}")
+        print(f"Failed to sync commands: {e}")
 
-@client.event
-async def on_message(message):
-    await handle_command(message)
+# /roll コマンドの定義（サイコロの詳細を表示）
+@bot.tree.command(name="roll", description="指定した回数と面数でサイコロを振ります。")
+@app_commands.describe(rolls="サイコロを振る回数", faces="サイコロの面数")
+async def roll(interaction: discord.Interaction, rolls: int = 1, faces: int = 6):
+    if not (1 <= rolls <= 10):
+        await interaction.response.send_message("サイコロの回数は1~10の間で指定してください。", ephemeral=True)
+        return
+    if not (2 <= faces <= 100):
+        await interaction.response.send_message("サイコロの面数は2~100の間で指定してください。", ephemeral=True)
+        return
+    
+    # サイコロを振る処理
+    results = [random.randint(1, faces) for _ in range(rolls)]
+    results_str = ", ".join(map(str, results))
+    
+    # 結果をわかりやすく表示
+    await interaction.response.send_message(f"{rolls}回の{faces}面のサイコロの結果: {results_str}")
 
-client.run(BOT_TOKEN)
+# /multiroll コマンドの定義（サイコロの種類ごとの結果を表示）
+@bot.tree.command(name="multiroll", description="複数の異なるサイコロを同時に振ります。")
+@app_commands.describe(rolls_faces="複数のサイコロの形式（例: 3d6, 2d100）")
+async def multiroll(interaction: discord.Interaction, rolls_faces: str):
+    try:
+        # "3d6, 2d100" の形式を解析
+        roll_sets = rolls_faces.split(",")
+        results_summary = []
+        for roll_set in roll_sets:
+            rolls, faces = map(int, roll_set.strip().split("d"))
+            if not (1 <= rolls <= 10) or not (2 <= faces <= 100):
+                raise ValueError("回数または面数が範囲外です")
+            results = [random.randint(1, faces) for _ in range(rolls)]
+            results_str = ", ".join(map(str, results))
+            # 各セットの結果をわかりやすく表示
+            results_summary.append(f"{rolls}回の{faces}面のサイコロの結果: {results_str}")
+        
+        # 全結果をまとめて送信
+        await interaction.response.send_message("\n".join(results_summary))
+    except ValueError:
+        await interaction.response.send_message("入力形式が正しくありません。例: 3d6, 2d100", ephemeral=True)
+    except Exception as e:
+        logging.error(f"マルチロールの処理中にエラーが発生しました: {e}")
+        await interaction.response.send_message("サイコロを振る処理中にエラーが発生しました。", ephemeral=True)
+
+# /help コマンドの定義
+@bot.tree.command(name="help", description="Botの使い方を説明します。")
+async def help(interaction: discord.Interaction):
+    help_message = (
+        "/roll - 指定した回数と面数でサイコロを振ります。\n"
+        "/multiroll - 複数のサイコロを同時に振ります。\n"
+        "例: 3d6, 2d100\n"
+        "/help - Botの使い方を表示します。"
+    )
+    await interaction.response.send_message(help_message)
+
+# ボットの起動
+try:
+    bot.run(config["TOKEN"])
+except discord.errors.LoginFailure:
+    logging.error("無効なトークンです。トークンを確認してください。")
+    raise SystemExit("無効なトークンです。トークンを確認してください。")
+except Exception as e:
+    logging.error(f"ボットの起動中にエラーが発生しました: {e}")
+    raise SystemExit(f"ボットの起動中にエラーが発生しました: {e}")
